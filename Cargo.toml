@@ -1,8 +1,7 @@
 [package]
 name = "mdbook-scala-wrapper"
 version = "0.1.0"
-authors = ["Noel Welsh <noel@untyped.com>"]
-edition = "2018"
+authors = ["Noel Welsh <noel@inner-product.com>"]
 
 [dependencies]
 clap = "2.24"
