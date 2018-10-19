@@ -64,15 +64,15 @@ impl ScalaWrapper {
         let mut first_line = false;
 
         let events = Parser::new(&chapter.content).filter_map(|event| match event {
-            Event::Start(Tag::CodeBlock(ref lang)) => {
+            Event::Start(Tag::CodeBlock(lang)) => {
                 if lang.as_ref() == "scala" {
                     in_scala_block = true;
                     first_line = true;
                 }
-                Some(event)
+                Some(Event::Start(Tag::CodeBlock(lang)))
             }
 
-            Event::Text(ref content) => {
+            Event::Text(content) => {
                 if in_scala_block {
                     if first_line {
                         first_line = false;
@@ -81,21 +81,21 @@ impl ScalaWrapper {
                             None
                         } else {
                             in_wrapped_block = false;
-                            Some(event)
+                            Some(Event::Text(content))
                         }
                     } else {
                         if in_wrapped_block {
                             if is_wrapper_end(&content) {
                                 None
                             } else {
-                                Some(event)
+                                Some(Event::Text(content))
                             }
                         } else {
-                            Some(event)
+                            Some(Event::Text(content))
                         }
                     }
                 } else {
-                    Some(event)
+                    Some(Event::Text(content))
                 }
             }
 
