@@ -50,6 +50,13 @@ fn is_wrapper_end(content: &str) -> bool {
     WRAPPER_BLOCK_END.is_match(content)
 }
 
+enum State {
+    OutsideScala,
+    ScalaFirstLine,
+    InsideWrapped,
+    InsideUnwrapped,
+}
+
 pub struct ScalaWrapper;
 
 impl ScalaWrapper {
@@ -59,49 +66,42 @@ impl ScalaWrapper {
 
     fn remove_wrappers(&self, chapter: &mut Chapter) -> Result<String> {
         let mut buf = String::with_capacity(chapter.content.len());
-        let mut in_scala_block = false;
-        let mut in_wrapped_block = false;
-        let mut first_line = false;
+        let mut state: State = State::OutsideScala;
 
         let events = Parser::new(&chapter.content).filter_map(|event| match event {
             Event::Start(Tag::CodeBlock(lang)) => {
                 if lang.as_ref() == "scala" {
-                    in_scala_block = true;
-                    first_line = true;
+                    state = State::ScalaFirstLine;
                 }
                 Some(Event::Start(Tag::CodeBlock(lang)))
             }
 
-            Event::Text(content) => {
-                if in_scala_block {
-                    if first_line {
-                        first_line = false;
-                        if is_wrapper_start(&content) {
-                            in_wrapped_block = true;
-                            None
-                        } else {
-                            in_wrapped_block = false;
-                            Some(Event::Text(content))
-                        }
+            Event::Text(content) => match state {
+                State::OutsideScala => Some(Event::Text(content)),
+
+                State::ScalaFirstLine => {
+                    if is_wrapper_start(&content) {
+                        state = State::InsideWrapped;
+                        None
                     } else {
-                        if in_wrapped_block {
-                            if is_wrapper_end(&content) {
-                                None
-                            } else {
-                                Some(Event::Text(content))
-                            }
-                        } else {
-                            Some(Event::Text(content))
-                        }
+                        state = State::InsideUnwrapped;
+                        Some(Event::Text(content))
                     }
-                } else {
-                    Some(Event::Text(content))
                 }
-            }
+
+                State::InsideWrapped => {
+                    if is_wrapper_end(&content) {
+                        None
+                    } else {
+                        Some(Event::Text(content))
+                    }
+                }
+
+                State::InsideUnwrapped => Some(Event::Text(content)),
+            },
 
             Event::End(Tag::CodeBlock(_)) => {
-                in_scala_block = false;
-                in_wrapped_block = false;
+                state = State::OutsideScala;
                 Some(event)
             }
             other => Some(other),
